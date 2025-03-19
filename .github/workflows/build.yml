@@ -1,38 +1,85 @@
-name: Build
-on: [push, pull_request]
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  build-android:
-    name: Build Android APK
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - uses: actions/checkout@v2
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install buildozer Cython==0.29.33 virtualenv
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install buildozer Cython==0.29.33 pillow
+        
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          python3-pip \
+          build-essential \
+          git \
+          python3 \
+          python3-dev \
+          ffmpeg \
+          libsdl2-dev \
+          libsdl2-image-dev \
+          libsdl2-mixer-dev \
+          libsdl2-ttf-dev \
+          libportmidi-dev \
+          libswscale-dev \
+          libavformat-dev \
+          libavcodec-dev \
+          zlib1g-dev \
+          libgstreamer1.0-dev \
+          gstreamer1.0-plugins-base \
+          gstreamer1.0-plugins-good
+        sudo apt-get install -y \
+          build-essential \
+          libsqlite3-dev \
+          sqlite3 \
+          bzip2 \
+          libbz2-dev \
+          zlib1g-dev \
+          libssl-dev \
+          openssl \
+          libgdbm-dev \
+          libgdbm-compat-dev \
+          liblzma-dev \
+          libreadline-dev \
+          libncursesw5-dev \
+          libffi-dev \
+          uuid-dev \
+          libopenjp2-7 \
+          openjdk-11-jdk
           
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y git zip unzip openjdk-11-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
-          sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev
-          sudo apt-get install -y libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev
-
-      - name: Build with Buildozer
-        run: |
-          buildozer android debug
-          
-      - name: Upload APK
-        uses: actions/upload-artifact@v3
-        with:
-          name: simplepong-apk
-          path: bin/*.apk
+    - name: Accept SDK licenses
+      run: |
+        mkdir -p $HOME/.buildozer/android/platform/android-sdk/licenses
+        echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        
+    - name: Build with Buildozer
+      run: |
+        # Remove the line from buildozer.spec asking for GPU acceleration
+        sed -i '/^requirements.*kivy.*$/s/$/, python3/' buildozer.spec
+        sed -i 's/android.archs =.*/android.archs = arm64-v8a/' buildozer.spec
+        
+        # Run buildozer
+        buildozer android debug
+        
+    - name: Upload APK
+      uses: actions/upload-artifact@v2
+      with:
+        name: app-debug
+        path: bin/*.apk
