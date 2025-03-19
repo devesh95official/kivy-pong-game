@@ -1,0 +1,79 @@
+name: Build APK with Buildozer
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Pull Buildozer Image
+        run: |
+          docker pull cython/cython:0.29.33
+          docker pull python:3.9-slim
+
+      - name: Build Custom Buildozer Image
+        run: |
+          cat > Dockerfile << 'EOF'
+          FROM python:3.9-slim
+          
+          RUN apt-get update && apt-get install -y --no-install-recommends \
+              build-essential ccache git zip unzip openjdk-11-jdk autoconf libtool pkg-config \
+              zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev \
+              libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+              libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev \
+              && apt-get clean && rm -rf /var/lib/apt/lists/*
+          
+          RUN pip install --no-cache-dir Cython==0.29.33 buildozer==1.2.0 virtualenv
+          
+          WORKDIR /app
+          EOF
+          
+          docker build -t custom-buildozer .
+      
+      - name: Setup buildozer.spec
+        run: |
+          cat > buildozer.spec << 'EOF'
+          [app]
+          title = Simple Pong Game
+          package.name = simplepong
+          package.domain = org.test
+          source.dir = .
+          source.include_exts = py,png,jpg,kv,atlas
+          version = 0.1
+          requirements = python3,kivy==2.0.0
+          orientation = landscape
+          fullscreen = 1
+          
+          [buildozer]
+          log_level = 2
+          warn_on_root = 1
+          EOF
+      
+      - name: Build with Custom Image
+        run: |
+          docker run --rm -v "$(pwd)":/app -w /app custom-buildozer buildozer android debug
+
+      - name: Check for APK
+        run: |
+          find . -name "*.apk" || echo "No APK files found"
+      
+      - name: Store APK
+        if: success()
+        run: |
+          mkdir -p /tmp/apk-output
+          cp bin/*.apk /tmp/apk-output/ || echo "No APK to copy"
+          ls -la /tmp/apk-output/
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "bin/*.apk"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: "v0.1.${{ github.run_number }}"
+          commit: ${{ github.sha }}
+          draft: false
+          prerelease: false
+          makeLatest: true
