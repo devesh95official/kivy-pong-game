@@ -5,19 +5,9 @@ package.domain = org.test
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 version = 0.1
-requirements = python3,kivy==2.0.0
-orientation = landscape
-fullscreen = 1
-
-# Android specific settings
-android.archs = arm64-v8a
+requirements = python3,kivy
 android.permissions = INTERNET
-android.api = 31
-android.minapi = 21
-android.sdk = 31
-android.ndk = 25b
-android.ndk_path = /usr/local/lib/android/sdk/ndk/25.2.9519653
-android.accept_sdk_license = True
+orientation = landscape
 
 [buildozer]
 log_level = 2
