@@ -15,7 +15,8 @@ android.permissions = INTERNET
 android.api = 31
 android.minapi = 21
 android.sdk = 31
-android.ndk = 23b
+android.ndk = 25b
+android.ndk_path = /usr/local/lib/android/sdk/ndk/25.2.9519653
 android.accept_sdk_license = True
 
 [buildozer]
