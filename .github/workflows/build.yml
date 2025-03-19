@@ -18,7 +18,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install buildozer Cython==0.29.33 pillow
+        pip install buildozer==1.5.0 Cython==0.29.33 pillow
         
     - name: Install system dependencies
       run: |
@@ -40,31 +40,35 @@ jobs:
           libavcodec-dev \
           zlib1g-dev \
           openjdk-11-jdk
+          
+    - name: Link NDK
+      run: |
+        mkdir -p ~/.buildozer/android/platform
+        ln -s /usr/local/lib/android/sdk/ndk/25.2.9519653 ~/.buildozer/android/platform/android-ndk-r25b
+        export ANDROIDNDK=~/.buildozer/android/platform/android-ndk-r25b
+        export ANDROIDNDKVER=r25b
 
     - name: Build with Buildozer
       run: |
         buildozer android debug
         
-    - name: Create release
-      id: create_release
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        draft: false
-        prerelease: false
-        
-    - name: Store APK file
+    - name: Save APK
+      if: success()
       run: |
-        mkdir -p ./apk
-        cp bin/*.apk ./apk/
+        mkdir -p apk-output
+        cp bin/*.apk apk-output/
         
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
+    - name: Upload APK directly
+      if: success()
+      uses: actions/upload-artifact@v2
+      continue-on-error: true
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./apk
-        force_orphan: true
+        name: app-debug
+        path: apk-output/*.apk
+
+    - name: List APK (Alternative)
+      if: always()
+      run: |
+        echo "=== APK Files (if any) ==="
+        ls -la bin/ || echo "bin directory doesn't exist"
+        find . -name "*.apk" -type f
