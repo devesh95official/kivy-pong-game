@@ -1,0 +1,31 @@
+name: Docker Build APK
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Docker
+        run: docker --version
+
+      - name: Build APK with Docker
+        run: |
+          docker run --rm -v "$(pwd)":/app -w /app kivy/buildozer:latest buildozer android debug
+
+      - name: Create Release Directory
+        if: success()
+        run: |
+          mkdir -p apk-files
+          cp bin/*.apk apk-files/ || echo "No APK files found"
+          
+      - name: Deploy to GitHub Pages
+        if: success()
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./apk-files
+          force_orphan: true
