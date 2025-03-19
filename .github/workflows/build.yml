@@ -1,17 +1,14 @@
 name: Build Android APK
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+on: [push, pull_request]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v2
 
     - name: Set up Python
       uses: actions/setup-python@v2
@@ -42,44 +39,32 @@ jobs:
           libavformat-dev \
           libavcodec-dev \
           zlib1g-dev \
-          libgstreamer1.0-dev \
-          gstreamer1.0-plugins-base \
-          gstreamer1.0-plugins-good
-        sudo apt-get install -y \
-          build-essential \
-          libsqlite3-dev \
-          sqlite3 \
-          bzip2 \
-          libbz2-dev \
-          zlib1g-dev \
-          libssl-dev \
-          openssl \
-          libgdbm-dev \
-          libgdbm-compat-dev \
-          liblzma-dev \
-          libreadline-dev \
-          libncursesw5-dev \
-          libffi-dev \
-          uuid-dev \
-          libopenjp2-7 \
           openjdk-11-jdk
-          
-    - name: Accept SDK licenses
-      run: |
-        mkdir -p $HOME/.buildozer/android/platform/android-sdk/licenses
-        echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-        
+
     - name: Build with Buildozer
       run: |
-        # Remove the line from buildozer.spec asking for GPU acceleration
-        sed -i '/^requirements.*kivy.*$/s/$/, python3/' buildozer.spec
-        sed -i 's/android.archs =.*/android.archs = arm64-v8a/' buildozer.spec
-        
-        # Run buildozer
         buildozer android debug
         
-    - name: Upload APK
-      uses: actions/upload-artifact@v2
+    - name: Create release
+      id: create_release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        name: app-debug
-        path: bin/*.apk
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+        
+    - name: Store APK file
+      run: |
+        mkdir -p ./apk
+        cp bin/*.apk ./apk/
+        
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./apk
+        force_orphan: true
